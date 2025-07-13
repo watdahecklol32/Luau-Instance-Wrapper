@@ -438,7 +438,7 @@ do
 		table_insert(all_instances, obj);
 		return fake_instance;	
 	end;
-	
+
 	current_env.Instance = table_clone(Instance);
 	local old = current_env.Instance.new;
 
@@ -539,7 +539,11 @@ do
 		if type(arg2) == "table" then
 			insert_gc(arg2);
 			raw_metatables[result] = arg2;
+			if rawget(arg2, "__gc") then
+				rawget(arg2, "__gc")(result);
+			end;
 		end;
+		
 		return result;
 	end, "setmetatable");
 	protect_from_debug_info(current_env.setmetatable, old);
@@ -550,6 +554,8 @@ do
 		local _proxy = old(include_mt);
 		insert_gc(_proxy);
 		raw_metatables[_proxy] = getmetatable(_proxy);
+		insert_gc(getmetatable(_proxy));
+		-- // TODO: do __gc for newproxy later
 		return _proxy;
 	end, "newproxy");
 	protect_from_debug_info(current_env.newproxy, old);
@@ -624,3 +630,9 @@ end, function()
 	print(__namecall == getrawmetatable(game).__namecall);
 	print(debug.info(__namecall, "s"))
 end);
+local lole = setmetatable({}, {
+	__gc = function(self)
+		-- print(debug.info(2, "fns"))
+		print("__gc test", self);
+	end,
+});
