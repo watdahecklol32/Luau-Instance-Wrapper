@@ -21,6 +21,7 @@ local getnilinstances;
 local getinstances;
 local getthreadidentity;
 do
+	local INIT_ON_START_UP: boolean = false;
 	local all_instances: {any} = {};
 	local current_env: { [string]: any } = getfenv();
 	local illegal_debug_fetch:{ [(...any) -> (...any)]: (...any) -> (...any) } = {};
@@ -74,22 +75,25 @@ do
 		end;
 		return namecall_method :: string? or "";
 	end;
-
+	checkcaller = @native function(): boolean
+		for i: number = 1, 20 do
+			local __ENV = pcall(getfenv, i);
+			if __ENV and raw_metatables[__ENV] then
+				return false;
+			end;
+		end;
+		return true;
+	end;
 	local _typeof = typeof;
 	newcclosure = @native function(...: any): ((...any) -> (...any))
 		local _function: (...any) -> (...any), name_of_function: string? = ...;
 		assert(_function and _typeof(_function) == "function", `invalid argument #1 to 'newcclosure' (function expected, got {_typeof(_function)})`)
-		local cloned_function = @native function(...:any): any
-			return _function(...);
-		end;
 		if name_of_function then
 			assert(name_of_function and _typeof(name_of_function) == "string", `invalid argument #2 to 'newcclosure' (string expected, got {_typeof(_function)})`)
 			c_function_data[_function] = name_of_function;
-			c_function_data[cloned_function] = name_of_function;
 		end;
 		table_insert(c_functions, _function);
-		table_insert(c_functions, cloned_function);
-		return cloned_function;
+		return _function;
 	end;
 	getthreadidentity = newcclosure(@native function()
 		return 2;
@@ -131,14 +135,7 @@ do
 		end;
 		return proxy;
 	end;
-	checkcaller = newcclosure(@native function(): boolean
-		for i: number = 1, 20 do
-			if pcall(getfenv, i) and getrawmetatable(getfenv(i)) then
-				return true;
-			end;
-		end;
-		return false;
-	end);
+
 	add_method = newcclosure(@native function(targeted_instance: any, new_method: any, thing: any): any
 		custom_methods[targeted_instance][new_method] = thing;
 		return thing;
@@ -600,21 +597,30 @@ do
 	fake_env.getnilinstances = getnilinstances;
 	fake_env.getinstances = getinstances;
 	fake_env.getthreadidentity = getthreadidentity;
-	local services: {string} = {"Workspace", "Players", "Lighting", "MaterialService", "ReplicatedFirst", "ReplicatedStorage", "ServerScriptService", "ServerStorage", "StarterGui", "StarterPack", "StarterPlayer", "Teams", "SoundService"};
-	local init_instance; init_instance = @native function(directory: Instance): ()
-		replicate_instance(directory);
-		for _,v in directory:GetDescendants() do
-			if _typeof(v) == "Instance" then 
-				replicate_instance(v);
+	if INIT_ON_START_UP then
+		local services: {string} = {"Workspace", "Players", "Lighting", "MaterialService", "ReplicatedFirst", "ReplicatedStorage", "ServerScriptService", "ServerStorage", "StarterGui", "StarterPack", "StarterPlayer", "Teams", "SoundService"};
+		local init_instance; init_instance = @native function(directory: Instance): ()
+			replicate_instance(directory);
+			for _,v in directory:GetDescendants() do
+				if _typeof(v) == "Instance" then 
+					replicate_instance(v);
+					init_instance(v);
+				end;
+			end;
+		end;
+		for _,v in game:GetDescendants() do
+			if _typeof(v) == "Instance" and table_find(services, tostring(v)) then
+				warn("[INIT] Replicating Service", v);
 				init_instance(v);
 			end;
 		end;
 	end;
-	for _,v in game:GetDescendants() do
-		if _typeof(v) == "Instance" and table_find(services, tostring(v)) then
-			warn("[INIT] Replicating Service", v);
-			init_instance(v);
-		end;
-	end;
 	setfenv(1, fake_env);
 end;
+xpcall(function()
+	return game:___();
+end, function()
+	local __namecall = debug.info(2, 'f');
+	print(__namecall == getrawmetatable(game).__namecall);
+	print(debug.info(__namecall, "s"))
+end);
