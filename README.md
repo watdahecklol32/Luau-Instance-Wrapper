@@ -33,7 +33,6 @@ local hook; hook = hookmetamethod(game, "__index", newcclosure(@native function(
 	end;
 	return hook(...);
 end));
-protect_from_debug_info(getrawmetatable(game).__index, hook); --> you should always do this after hooking
 print(game.CreatorId);
 
 -- 3. reading locked metatables, i've hooked newproxy and setmetable to respect getrawmetatable
