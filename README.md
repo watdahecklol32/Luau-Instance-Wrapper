@@ -11,6 +11,18 @@
 7. getgc           - (returns all the userdatas and tables)
 8. add_method      - (adds your own custom method to an instance)
 9. protect_from_debug_info - (attempts to protect your function from debug.info attacks)
+10. checkcaller - (returns false if the sandbox env called the function)
+11. cloneref - (refrence to the replicate_instance function)
+12. getthreadidentity - (always returns the number 2)
+13. isluau - (always returns true)
+14. getnilinstances - (gets instances that are parent to nil)
+15. getinstances - (gets every instance)
+16. getnamecallmethod - (returns the method that invoked ``__namecall``)
+17. identifyexecutor - meows at u :33
+18. isnewcclosure - (returns the true if the function is a fake C function)
+19. isreadonly - table.isfrozen
+20. setreadonly - table.freeze
+21. newcproxy - (emulates a (C) proxy but with your own metamethods, special metamethods like __type will work on these proxies.)
 ```luau
 -- 1. Adding fake methods to 'game' instance
 add_method(game, "Number", 4); -- now if the 3rd arg in add_method is NOT a function, __namecall will ignore it
@@ -54,9 +66,23 @@ for _,v in lua_gc do
 		break;
 	end;
 end;
+-- example 2:
+
+local new_table = {};
+table.insert(new_table, "hi");
+table.insert(new_table, "hi2");
+local LUA_GC = getgc(true);
+for _,v in LUA_GC do
+	if type(v) == "table" and table.find(v, "hi2") then
+		print("found", v);
+		break;
+	end;
+end;
 
 -- 5. implode
 setrawmetatable(game, {});
 print(getrawmetatable(game));
+
+
 
 ```
