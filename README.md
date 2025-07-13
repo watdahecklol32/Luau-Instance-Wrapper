@@ -1,5 +1,5 @@
 # Luau-Instance-Wrapper
-## a cheap and detectable and shitty instance wrapper for roblox instances
+## a cheap and detectable and shitty instance wrapper for roblox instances, some code has been skidded from my friend
 
 ## list of da functions:
 1. setrawmetatable - (sets a gaven objects metatable even despite if it has the ``__metatable`` field)
