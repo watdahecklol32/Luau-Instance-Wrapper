@@ -98,10 +98,14 @@ do
 				c_function_data[_function] = name_of_function;
 			end;
 			table_insert(c_functions, _function);
-			if checkcaller and not checkcaller() then
-				return @native function(...: any): any
+			if not _checkcaller() then
+				local meow; meow = @native function(...: any): any
 					return _function(...);
 				end;
+				if name_of_function then
+					c_function_data[meow] = name_of_function;
+				end;
+				table_insert(c_functions, meow);
 			end;
 			return _function;
 		end;
@@ -664,22 +668,15 @@ do
 	end);
 	resume(our_thread);
 end;
+local task = table.clone(task);
+local old; old = task.wait;
+task.wait = newcclosure(@native function(...: any)
+	print("meow");
+	return old(...);
+end, "wait");
+protect_from_debug_info(task.wait, old);
 xpcall(function()
-	return game.meow;
+	return task.wait(false);
 end, function()
-	print(debug.info(2, "f") == getrawmetatable(game).__index);
-end);
-local hook; hook = hookmetamethod(game, "__index", newcclosure(@native function(...: any): any
-	local self, index = ...;
-	if not checkcaller() and self and self == game and index == "CreatorId" then
-		return "meow";
-	end;
-	return hook(...);
-end));
-protect_from_debug_info(getrawmetatable(game).__index, hook);
-xpcall(function()
-	return game.meow;
-end, function()
-	print(debug.info(2, "f") == getrawmetatable(game).__index);
-end);
-print(game.CreatorId)
+	print(debug.info(2, "f") == task.wait)
+end)
