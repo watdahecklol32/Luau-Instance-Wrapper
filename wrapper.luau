@@ -21,6 +21,7 @@ local getnilinstances;
 local getinstances;
 local getthreadidentity;
 local isnewcclosure;
+local newcproxy;
 do
 	local our_thread;
 	local coro = coroutine;
@@ -59,6 +60,7 @@ do
 		local custom_methods: {[any]: any} = {}
 		local pcall = pcall;
 		local table_find: <V>({V}, V, number?) -> number? = table.find;
+		local c_proxies: {any} = {};
 		local insert_gc; insert_gc = @native function(to_insert: any): ()
 			if table_find(lua_gc, to_insert) then
 				return;
@@ -144,6 +146,7 @@ do
 			insert_gc(meta_methods);
 			insert_gc(proxy);
 			raw_metatables[proxy] = proxy_mt;
+			table_insert(c_proxies, proxy);
 			for i,v in meta_methods do
 				proxy_mt[i] = v;
 			end;
@@ -237,6 +240,19 @@ do
 			end;
 			return nil_instances;
 		end, "getnilinstances");
+		newcproxy = newcclosure(@native function(meta_methods: {[string]: any}): {any}
+			assert(meta_methods and type(meta_methods) == "table", `invalid argument #1 to 'newcproxy' (table expected, got {_typeof(newcproxy)})`)
+			local proxy: any = newproxy(true);
+			insert_gc(proxy);
+			local mt: {[string]: any} = getmetatable(proxy);
+			insert_gc(mt);
+			table_insert(c_proxies, proxy);
+			raw_metatables[proxy] = mt;
+			for i: any,v: any in meta_methods do
+				rawset(mt, i, v);
+			end;
+			return proxy, mt;
+		end, "newcproxy");
 		replicate_instance = @native function(obj: any, is_clone_ref: boolean?): any
 			warn("[replicate_instance] called on", obj);
 			local fake_instance;
@@ -522,11 +538,12 @@ do
 		makereadonly(current_env.debug);
 
 		local old = current_env.typeof;
-		current_env.typeof = newcclosure(@native function(to_check: any): any
-			if to_check and old(to_check) == "userdata" and getrawmetatable(to_check) and getrawmetatable(to_check).__type and getrawmetatable(to_check).__namecall and getrawmetatable(to_check).__call then
-				return getrawmetatable(to_check).__type;
+		current_env.typeof = newcclosure(@native function(...: any): any
+			local to_check: any = ...;
+			if to_check and old(to_check) == "userdata" and type(to_check) == "userdata" and raw_metatables[to_check] and table_find(c_proxies, to_check) and raw_metatables[to_check].__type then
+				return raw_metatables[to_check].__type;
 			end;
-			return old(to_check);
+			return old(...);
 		end, "typeof");
 
 		protect_from_debug_info(current_env.typeof, old);
@@ -668,15 +685,5 @@ do
 	end);
 	resume(our_thread);
 end;
-local task = table.clone(task);
-local old; old = task.wait;
-task.wait = newcclosure(@native function(...: any)
-	print("meow");
-	return old(...);
-end, "wait");
-protect_from_debug_info(task.wait, old);
-xpcall(function()
-	return task.wait(false);
-end, function()
-	print(debug.info(2, "f") == task.wait)
-end)
+local proxy, mt = newcproxy({__type = "hi"});
+print(typeof(proxy))
