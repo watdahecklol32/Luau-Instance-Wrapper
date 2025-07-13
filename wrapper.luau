@@ -44,7 +44,7 @@ do
 	local unpack: <V>({V}, number?, number?) -> (...V) = table.unpack;
 	local table_clone: ({  }) -> {  } = table.clone;
 	local type: <T>(T) -> string = type;
-	local makereadable: ({  }) -> {  } = table.freeze;
+	local makereadonly: ({  }) -> {  } = table.freeze;
 	local rawset: <K, V>({ [K]: V }, K, V) -> { [K]: V } = rawset;
 	local rawget: <K, V>({ [K]: V }, K) -> V = rawget;
 	local assert: <T>(T, string?) -> T = assert;
@@ -53,6 +53,9 @@ do
 	local pcall = pcall;
 	local table_find: <V>({V}, V, number?) -> number? = table.find;
 	local insert_gc; insert_gc = @native function(to_insert: any): ()
+		if table_find(lua_gc, to_insert) then
+			return;
+		end;
 		table_insert(lua_gc, to_insert);
 	end :: (any) -> ();
 	local namecall_leax = @native function(object: any): any
@@ -75,15 +78,6 @@ do
 		end;
 		return namecall_method :: string? or "";
 	end;
-	checkcaller = @native function(): boolean
-		for i: number = 1, 20 do
-			local __ENV = pcall(getfenv, i);
-			if __ENV and raw_metatables[__ENV] then
-				return false;
-			end;
-		end;
-		return true;
-	end;
 	local _typeof = typeof;
 	newcclosure = @native function(...: any): ((...any) -> (...any))
 		local _function: (...any) -> (...any), name_of_function: string? = ...;
@@ -102,7 +96,15 @@ do
 		-- assert(to_get and _typeof(to_get) == "table" or _typeof(to_get) == "userdata", `invalid argument #1 to 'getrawmetatable' (table or userdata expected, got {typeof(to_get)})`);
 		return raw_metatables[to_get] or getmetatable(to_get);
 	end, "getrawmetatable");
-
+	checkcaller = newcclosure(@native function(): boolean
+		for i: number = 1, 20 do
+			local __ENV = pcall(getfenv, i);
+			if __ENV and raw_metatables[__ENV] then
+				return false;
+			end;
+		end;
+		return true;
+	end, "checkcaller");
 	setrawmetatable = newcclosure(@native function(to_replace: any, new_methods: {[string]: any}): any
 		assert(to_replace and _typeof(to_replace) == "table" or _typeof(to_replace) == "userdata", `invalid argument #1 to 'setrawmetatable' (table or userdata expected, got {typeof(to_replace)})`);
 		assert(new_methods and _typeof(new_methods) == "table", `invalid argument #2 to 'setrawmetatable' (table expected, got {typeof(new_methods)})`);
@@ -455,7 +457,7 @@ do
 	end, "fromExisting");
 
 	protect_from_debug_info(current_env.Instance.fromExisting, old);
-	makereadable(current_env.Instance);
+	makereadonly(current_env.Instance);
 	insert_gc(current_env.Instance);
 
 	current_env.debug = table_clone(debug);
@@ -505,7 +507,7 @@ do
 	end, "info");
 
 	protect_from_debug_info(current_env.debug.info, old);
-	makereadable(current_env.debug);
+	makereadonly(current_env.debug);
 
 	local old = current_env.typeof;
 	current_env.typeof = newcclosure(@native function(to_check: any): any
@@ -584,6 +586,36 @@ do
 		local result = replicate_instance(fake_to_real[to_clone], true);
 		return result;
 	end, "cloneref");
+	
+	local old_table = table_clone(current_env.table);
+	current_env.table = table_clone(current_env.table);
+	for i: string, v: any in current_env.table do
+		if type(v) == "function" then
+			local old: (...any) -> (...any) = old_table[i];
+			local func_name: string? = debug.info(v, "n");
+			current_env.table[i] = newcclosure(@native function(...: any): any
+				local args: {any} = {...};
+				local result: any = old(unpack(args));
+				for _,v in args do
+					for index: any, value: any in args do
+						if type(index) == "table" then
+							insert_gc(index);
+						end;
+						if type(value) == "table" then
+							insert_gc(value);
+						end;
+					end;
+				end;
+				if type(result) == "table" then
+					insert_gc(result);
+				end;
+				return result
+			end, func_name);
+			protect_from_debug_info(current_env.table[i], old);
+		end;
+	end;
+	makereadonly(current_env.table);
+	
 	fake_env.hookmetamethod = hookmetamethod;
 	fake_env.newcclosure = newcclosure;
 	fake_env.islclosure = islclosure;
@@ -623,16 +655,13 @@ do
 	end;
 	setfenv(1, fake_env);
 end;
-xpcall(function()
-	return game:___();
-end, function()
-	local __namecall = debug.info(2, 'f');
-	print(__namecall == getrawmetatable(game).__namecall);
-	print(debug.info(__namecall, "s"))
-end);
-local lole = setmetatable({}, {
-	__gc = function(self)
-		-- print(debug.info(2, "fns"))
-		print("__gc test", self);
-	end,
-});
+local new_table = {};
+table.insert(new_table, "hi");
+table.insert(new_table, "hi2");
+local LUA_GC = getgc(true);
+for _,v in LUA_GC do
+	if type(v) == "table" and table.find(v, "hi2") then
+		print("found", v);
+		break;
+	end;
+end;
