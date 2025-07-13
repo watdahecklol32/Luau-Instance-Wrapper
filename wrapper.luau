@@ -12,7 +12,16 @@ local iscclosure;
 local isourclosure;
 local add_method;
 local getnamecallmethod;
+local checkcaller;
+local identifyexecutor;
+local isluau;
+local getgenv;
+local cloneref;
+local getnilinstances;
+local getinstances;
+local getthreadidentity;
 do
+	local all_instances: {any} = {};
 	local current_env: { [string]: any } = getfenv();
 	local illegal_debug_fetch:{ [(...any) -> (...any)]: (...any) -> (...any) } = {};
 	local lua_gc: {any} = {};
@@ -40,6 +49,8 @@ do
 	local assert: <T>(T, string?) -> T = assert;
 	local string = string;
 	local custom_methods: {[any]: any} = {}
+	local pcall = pcall;
+	local table_find: <V>({V}, V, number?) -> number? = table.find;
 	local insert_gc; insert_gc = @native function(to_insert: any): ()
 		table_insert(lua_gc, to_insert);
 	end :: (any) -> ();
@@ -63,19 +74,26 @@ do
 		end;
 		return namecall_method :: string? or "";
 	end;
-	
+
 	local _typeof = typeof;
 	newcclosure = @native function(...: any): ((...any) -> (...any))
 		local _function: (...any) -> (...any), name_of_function: string? = ...;
 		assert(_function and _typeof(_function) == "function", `invalid argument #1 to 'newcclosure' (function expected, got {_typeof(_function)})`)
+		local cloned_function = @native function(...:any): any
+			return _function(...);
+		end;
 		if name_of_function then
 			assert(name_of_function and _typeof(name_of_function) == "string", `invalid argument #2 to 'newcclosure' (string expected, got {_typeof(_function)})`)
 			c_function_data[_function] = name_of_function;
+			c_function_data[cloned_function] = name_of_function;
 		end;
 		table_insert(c_functions, _function);
-		return _function;
+		table_insert(c_functions, cloned_function);
+		return cloned_function;
 	end;
-
+	getthreadidentity = newcclosure(@native function()
+		return 2;
+	end, "getthreadidentity");
 	getrawmetatable = newcclosure(@native function(to_get: any): {[string]: any}
 		-- assert(to_get and _typeof(to_get) == "table" or _typeof(to_get) == "userdata", `invalid argument #1 to 'getrawmetatable' (table or userdata expected, got {typeof(to_get)})`);
 		return raw_metatables[to_get] or getmetatable(to_get);
@@ -95,6 +113,12 @@ do
 		return setmetatable(to_replace, new_methods);
 	end, "setrawmetatable");
 
+	identifyexecutor = newcclosure(@native function(): "da meower >:3"
+		return "da meower >:3";	
+	end, "identifyexecutor");
+	isluau = newcclosure(@native function(): true
+		return true;		
+	end, "isluau");
 	local setnewproxy; setnewproxy = @native function(meta_methods: {[string]: any}): any
 		local proxy = newproxy(true);
 		local proxy_mt = getmetatable(proxy);
@@ -107,24 +131,42 @@ do
 		end;
 		return proxy;
 	end;
+	checkcaller = newcclosure(@native function(): boolean
+		for i: number = 1, 20 do
+			if pcall(getfenv, i) and getrawmetatable(getfenv(i)) then
+				return true;
+			end;
+		end;
+		return false;
+	end);
 	add_method = newcclosure(@native function(targeted_instance: any, new_method: any, thing: any): any
 		custom_methods[targeted_instance][new_method] = thing;
 		return thing;
 	end, "add_method");
 	iscclosure = newcclosure(@native function(f: (...any) -> (...any)): boolean
 		assert(f and _typeof(f) == "function", `invalid argument #1 to 'iscclosure' (function expected, got {_typeof(f)})`);
+		if table_find(c_functions, f) then
+			return true;
+		end;
 		return debugInfo(f, "s") == "[C]";
 	end, "iscclosure");
+	isnewcclosure = newcclosure(@native function(f: (...any) -> (...any)): boolean
+		assert(f and _typeof(f) == "function", `invalid argument #1 to 'isnewcclosure' (function expected, got {_typeof(f)})`);
+		if table_find(c_functions, f) then
+			return true;
+		end;
+		return false;
+	end, "isnewcclosure");
 	islclosure = newcclosure(@native function(f: (...any) -> (...any)): boolean
 		assert(f and _typeof(f) == "function", `invalid argument #1 to 'islclosure' (function expected, got {_typeof(f)})`);
 		return debugInfo(f, "s") ~= "[C]";
 	end, "islclosure");
-	
+
 	isourclosure = newcclosure(@native function(f: (...any) -> (...any)): boolean
 		assert(f and _typeof(f) == "function", `invalid argument #1 to 'isourclosure' (function expected, got {_typeof(f)})`);
 		return current_env.debug.info(f, "s") == "[C]";
 	end, "isourclosure");
-	
+
 	protect_from_debug_info = @native function(fake_function: (...any) -> (...any), real_function: (...any) -> (...any)): (...any) -> (...any)
 		illegal_debug_fetch[real_function] = fake_function; 
 		return fake_function;
@@ -168,14 +210,29 @@ do
 	getgc = newcclosure(@native function()
 		return lua_gc;
 	end, "getgc");
-	
-	replicate_instance = @native function(obj: any): any
+	getinstances = newcclosure(@native function(): {any}
+		local instances: {any} = {};
+		for i: number, v: any in all_instances do
+			instances[i] = v;
+		end;
+		return instances;
+	end, "getinstances");
+	getnilinstances = newcclosure(@native function(): {any}
+		local nil_instances: {any} = {};
+		for i: number ,v: any in getinstances() do
+			if v.Parent == nil then
+				table_insert(nil_instances, v);
+			end;
+		end;
+		return nil_instances;
+	end, "getnilinstances");
+	replicate_instance = @native function(obj: any, is_clone_ref: boolean?): any
 		warn("[replicate_instance] called on", obj);
 		local fake_instance;
 		if _typeof(obj) ~= "Instance" then
 			return obj;
 		end;
-		if getinstance(obj, "fake") then
+		if getinstance(obj, "fake") and not is_clone_ref then
 			warn("[replicate_instance] instance already exists", obj);
 			return getinstance(obj, "fake");
 		end;
@@ -381,8 +438,10 @@ do
 		custom_methods[fake_instance] = {};
 		real_to_fake[obj] = fake_instance;
 		fake_to_real[fake_instance] = obj;
+		table_insert(all_instances, obj);
 		return fake_instance;	
 	end;
+	
 	current_env.Instance = table_clone(Instance);
 	local old = current_env.Instance.new;
 
@@ -403,11 +462,16 @@ do
 	insert_gc(current_env.Instance);
 
 	current_env.debug = table_clone(debug);
+	current_env.debug.getmetatable = newcclosure(@native function(...: any): any
+		return getrawmetatable(...);
+	end, "getmetatable");
+	current_env.debug.setmetatable = newcclosure(@native function(...: any): any
+		return setrawmetatable(...);
+	end, "setmetatable");
 	insert_gc(current_env.debug);
 
 	local old = current_env.debug.info;
 
-	local table_find: <V>({V}, V, number?) -> number? = table.find;
 	current_env.debug.info = newcclosure(@native @checked function(param1: any, param2: any): any | string
 		if type(param1) == "number" then
 			param1 += 2; -- no: 3
@@ -509,5 +573,48 @@ do
 	workspace = replicate_instance(workspace) :: Workspace;
 
 	Workspace = workspace :: Workspace;
+	getgenv = newcclosure(@native function(): typeof(fake_env)
+		return fake_env;
+	end, "getgenv");
+	cloneref = newcclosure(@native function(to_clone: any): any
+		assert(to_clone and _typeof(to_clone) == "userdata", `invalid argument #1 to 'cloneref' (Instance expected, got {_typeof(to_clone)})`);
+		local result = replicate_instance(fake_to_real[to_clone], true);
+		return result;
+	end, "cloneref");
+	fake_env.hookmetamethod = hookmetamethod;
+	fake_env.newcclosure = newcclosure;
+	fake_env.islclosure = islclosure;
+	fake_env.getgc = getgc;
+	fake_env.getrawmetatable = getrawmetatable;
+	fake_env.setrawmetatable = setrawmetatable;
+	fake_env.getgenv = getgenv;
+	fake_env.checkcaller = checkcaller;
+	fake_env.cloneref = cloneref;
+	fake_env.iscclosure = iscclosure;
+	fake_env.isourclosure = isourclosure;
+	fake_env.isnewcclosure = isnewcclosure;
+	fake_env.identifyexecutor = identifyexecutor;
+	fake_env.getnamecallmethod = getnamecallmethod;
+	fake_env.setreadonly = current_env.table.freeze;
+	fake_env.isreadonly = current_env.table.isfrozen;
+	fake_env.getnilinstances = getnilinstances;
+	fake_env.getinstances = getinstances;
+	fake_env.getthreadidentity = getthreadidentity;
+	local services: {string} = {"Workspace", "Players", "Lighting", "MaterialService", "ReplicatedFirst", "ReplicatedStorage", "ServerScriptService", "ServerStorage", "StarterGui", "StarterPack", "StarterPlayer", "Teams", "SoundService"};
+	local init_instance; init_instance = @native function(directory: Instance): ()
+		replicate_instance(directory);
+		for _,v in directory:GetDescendants() do
+			if _typeof(v) == "Instance" then 
+				replicate_instance(v);
+				init_instance(v);
+			end;
+		end;
+	end;
+	for _,v in game:GetDescendants() do
+		if _typeof(v) == "Instance" and table_find(services, tostring(v)) then
+			warn("[INIT] Replicating Service", v);
+			init_instance(v);
+		end;
+	end;
 	setfenv(1, fake_env);
 end;
