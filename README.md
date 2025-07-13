@@ -1,7 +1,15 @@
 # Luau-Instance-Wrapper
-## a cheap and detectable instance wrapper for roblox instances
+## a cheap and detectable and shitty instance wrapper for roblox instances
 
-
+## list of da functions:
+1. setrawmetatable - (sets a gaven objects metatable even despite if it has the ``__metatable`` field)
+2. getrawmetatable - (gets a gaven objects metatable even despite if it has the ``__metatable`` field)
+3. hookmetamethod  - (hooks a gaven object's metamethod if found with your own function)
+4. newcclosure     - (doesnt actually newcclosure its just for the debug.info hook to make it look liek its a c function)
+5. islclosure      - (returns true if the function was written in lua)
+6. iscclosure      - (returns true if the function was written in c)
+7. getgc           - (returns all the userdatas and tables)
+8. add_method      - (adds your own custom method to an instance)
 ```luau
 -- 1. Adding fake methods to 'game' instance
 add_method(game, "Number", 4); -- now if the 3rd arg in add_method is NOT a function, __namecall will ignore it
