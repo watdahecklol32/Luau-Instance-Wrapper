@@ -10,6 +10,7 @@
 6. iscclosure      - (returns true if the function was written in c)
 7. getgc           - (returns all the userdatas and tables)
 8. add_method      - (adds your own custom method to an instance)
+9. protect_from_debug_info - (attempts to protect your function from debug.info attacks)
 ```luau
 -- 1. Adding fake methods to 'game' instance
 add_method(game, "Number", 4); -- now if the 3rd arg in add_method is NOT a function, __namecall will ignore it
