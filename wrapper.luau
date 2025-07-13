@@ -29,7 +29,7 @@ do
 	local resume = coroutine.resume;
 	local running = coro.running;
 	our_thread = create(@native function(...) 
-		local INIT_ON_START_UP: boolean = false;
+		local INIT_ON_START_UP: boolean = true;
 		local all_instances: {any} = {};
 		local current_env: { [string]: any } = getfenv();
 		local illegal_debug_fetch:{ [(...any) -> (...any)]: (...any) -> (...any) } = {};
@@ -603,10 +603,11 @@ do
 		getmetatable(fake_env).__metatable = getmetatable(current_env);
 		insert_gc(fake_env);
 
-		game = replicate_instance(game) :: DataModel & typeof(game:GetDescendants());
-		workspace = replicate_instance(workspace) :: Workspace;
-
-		Workspace = workspace :: Workspace;
+		current_env.game = replicate_instance(game) :: DataModel & typeof(game:GetDescendants());
+		current_env.workspace = replicate_instance(workspace) :: Workspace;
+		current_env.Workspace = workspace :: Workspace;
+		current_env.Game = game;
+		
 		getgenv = newcclosure(@native function(): typeof(fake_env)
 			return fake_env;
 		end, "getgenv");
@@ -685,5 +686,3 @@ do
 	end);
 	resume(our_thread);
 end;
-local proxy, mt = newcproxy({__type = "hi"});
-print(typeof(proxy))
