@@ -111,14 +111,19 @@ do
 			end;
 			return _function;
 		end;
-		getthreadidentity = newcclosure(@native function()
+		getthreadidentity = newcclosure(@native function(): number
 			return 2;
-		end, "getthreadidentity");
-		getrawmetatable = newcclosure(@native function(to_get: any): {[string]: any}
+		end, "getthreadidentity") :: () -> number;
+		
+	
+		getrawmetatable = newcclosure(@native function(to_get: any): {[string]: any} 
 			-- assert(to_get and _typeof(to_get) == "table" or _typeof(to_get) == "userdata", `invalid argument #1 to 'getrawmetatable' (table or userdata expected, got {typeof(to_get)})`);
 			return raw_metatables[to_get] or getmetatable(to_get);
-		end, "getrawmetatable");
-		checkcaller = newcclosure(_checkcaller, "checkcaller");
+		end, "getrawmetatable") :: (target_object: any) -> {[string]: any};
+		
+		
+		checkcaller = newcclosure(_checkcaller, "checkcaller") :: () -> boolean;
+		
 		setrawmetatable = newcclosure(@native function(to_replace: any, new_methods: {[string]: any}): any
 			assert(to_replace and _typeof(to_replace) == "table" or _typeof(to_replace) == "userdata", `invalid argument #1 to 'setrawmetatable' (table or userdata expected, got {typeof(to_replace)})`);
 			assert(new_methods and _typeof(new_methods) == "table", `invalid argument #2 to 'setrawmetatable' (table expected, got {typeof(new_methods)})`);
@@ -131,14 +136,16 @@ do
 				return raw_mt;
 			end;
 			return setmetatable(to_replace, new_methods);
-		end, "setrawmetatable");
+		end, "setrawmetatable") :: (to_replace: any, new_methods: {[string?]: any?}) -> any;
 
 		identifyexecutor = newcclosure(@native function(): "da meower >:3"
 			return "da meower >:3";	
-		end, "identifyexecutor");
+		end, "identifyexecutor") :: () -> "da meower >:3";
+		
 		isluau = newcclosure(@native function(): true
 			return true;		
-		end, "isluau");
+		end, "isluau") :: () -> true;
+		
 		local setnewproxy; setnewproxy = @native function(meta_methods: {[string]: any}): any
 			local proxy = newproxy(true);
 			local proxy_mt = getmetatable(proxy);
@@ -156,37 +163,40 @@ do
 		add_method = newcclosure(@native function(targeted_instance: any, new_method: any, thing: any): any
 			custom_methods[targeted_instance][new_method] = thing;
 			return thing;
-		end, "add_method");
+		end, "add_method") :: (target_instance: any, method_name: string, value: any) -> any;
+		
 		iscclosure = newcclosure(@native function(f: (...any) -> (...any)): boolean
 			assert(f and _typeof(f) == "function", `invalid argument #1 to 'iscclosure' (function expected, got {_typeof(f)})`);
 			if table_find(c_functions, f) then
 				return true;
 			end;
 			return debugInfo(f, "s") == "[C]";
-		end, "iscclosure");
+		end, "iscclosure") :: (to_check: ((...any) -> (...any))) -> boolean;
+		
 		isnewcclosure = newcclosure(@native function(f: (...any) -> (...any)): boolean
 			assert(f and _typeof(f) == "function", `invalid argument #1 to 'isnewcclosure' (function expected, got {_typeof(f)})`);
 			if table_find(c_functions, f) then
 				return true;
 			end;
 			return false;
-		end, "isnewcclosure");
+			
+		end, "isnewcclosure") :: (to_check: ((...any) -> (...any))) -> boolean;
 		islclosure = newcclosure(@native function(f: (...any) -> (...any)): boolean
 			assert(f and _typeof(f) == "function", `invalid argument #1 to 'islclosure' (function expected, got {_typeof(f)})`);
 			return debugInfo(f, "s") ~= "[C]";
-		end, "islclosure");
+		end, "islclosure") :: (to_check: ((...any) -> (...any))) -> boolean;
 
 		isourclosure = newcclosure(@native function(f: (...any) -> (...any)): boolean
 			assert(f and _typeof(f) == "function", `invalid argument #1 to 'isourclosure' (function expected, got {_typeof(f)})`);
 			return current_env.debug.info(f, "s") == "[C]";
-		end, "isourclosure");
+		end, "isourclosure") :: (to_check: ((...any) -> (...any))) -> boolean;
 
-		protect_from_debug_info = @native function(fake_function: (...any) -> (...any), real_function: (...any) -> (...any)): (...any) -> (...any)
+		protect_from_debug_info = newcclosure(@native function(fake_function: (...any) -> (...any), real_function: (...any) -> (...any)): (...any) -> (...any)
 			illegal_debug_fetch[real_function] = fake_function; 
 			return fake_function;
-		end;
-
-		hookmetamethod = @native function(...: any): (...any) -> (...any)
+		end, "protect_from_debug_info");
+		
+		hookmetamethod = newcclosure(@native function(...: any): (...any) -> (...any)
 			local target: any, method: string, closure: (...any) -> (...any) = ...;
 			assert(target and _typeof(target) == "table" or _typeof(target) == "userdata", `invalid argument #1 to 'hookmetamethod' (table or userdata expected, got {_typeof(target)})`);
 			assert(method and _typeof(method) == "string", `invalid argument #2 to 'hookmetamethod' (string expected, got {_typeof(method)})`);
@@ -199,8 +209,8 @@ do
 			rawset(target, method, closure);
 			protect_from_debug_info(old_method, closure);
 			return old_method;
-		end;
-
+		end, "hookmetamethod") :: (to_hook: any, target_meta_method: string, replacement_function: (...any) -> (...any)) -> (any);
+		
 		local getinstance; getinstance = @native function(to_get: any, mode: string): any?
 			if mode == "real" then
 				if _typeof(to_get) == "Instance" then
@@ -221,16 +231,16 @@ do
 			return new_table;
 		end;
 
-		getgc = newcclosure(@native function()
+		getgc = newcclosure(@native function(bool: boolean): any
 			return lua_gc;
-		end, "getgc");
+		end, "getgc") :: () -> any;
 		getinstances = newcclosure(@native function(): {any}
 			local instances: {any} = {};
 			for i: number, v: any in all_instances do
 				instances[i] = v;
 			end;
 			return instances;
-		end, "getinstances");
+		end, "getinstances") :: () -> {any};
 		getnilinstances = newcclosure(@native function(): {any}
 			local nil_instances: {any} = {};
 			for i: number ,v: any in getinstances() do
@@ -239,7 +249,7 @@ do
 				end;
 			end;
 			return nil_instances;
-		end, "getnilinstances");
+		end, "getnilinstances") :: () -> {any};
 		newcproxy = newcclosure(@native function(meta_methods: {[string]: any}): {any}
 			assert(meta_methods and type(meta_methods) == "table", `invalid argument #1 to 'newcproxy' (table expected, got {_typeof(newcproxy)})`)
 			local proxy: any = newproxy(true);
@@ -252,7 +262,7 @@ do
 				rawset(mt, i, v);
 			end;
 			return proxy, mt;
-		end, "newcproxy");
+		end, "newcproxy") :: (meta_methods: {[string]: any}) -> (any, {[string]: any});
 		replicate_instance = @native function(obj: any, is_clone_ref: boolean?): any
 			warn("[replicate_instance] called on", obj);
 			local fake_instance;
@@ -590,7 +600,7 @@ do
 			return _proxy;
 		end, "newproxy");
 		protect_from_debug_info(current_env.newproxy, old);
-		
+
 		local old = current_env.require;
 		current_env.require = newcclosure(@native function(to_get: any): any
 			to_get = getinstance(to_get, "real") or to_get;
@@ -616,15 +626,15 @@ do
 		current_env.Workspace = workspace :: Workspace;
 		current_env.Game = game;
 		current_env.script = fake_env.script
-		
+
 		getgenv = newcclosure(@native function(): typeof(fake_env)
 			return fake_env;
-		end, "getgenv");
+		end, "getgenv") :: () -> typeof(fake_env);
 		cloneref = newcclosure(@native function(to_clone: any): any
 			assert(to_clone and _typeof(to_clone) == "userdata", `invalid argument #1 to 'cloneref' (Instance expected, got {_typeof(to_clone)})`);
 			local result = replicate_instance(fake_to_real[to_clone], true);
 			return result;
-		end, "cloneref");
+		end, "cloneref") :: (to_clone: any) -> any;
 
 		local old_table = table_clone(current_env.table);
 		current_env.table = table_clone(current_env.table);
