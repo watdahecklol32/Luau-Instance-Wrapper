@@ -84,6 +84,19 @@ end;
 setrawmetatable(game, {});
 print(getrawmetatable(game));
 
-
+-- 6. hooking functionss
+local old; old = task.wait;
+task = table.clone(task);
+task.wait = newcclosure(@native function(...: any): number
+	local time_to_wait: number? = ...;
+	if time_to_wait and type(time_to_wait) == "number" and time_to_wait == 2 then
+		warn("i hate the number 2");
+		return 0;
+	end;
+	return old(...);
+end, "wait");
+protect_from_debug_info(task.wait, old);
+table.freeze(task);
+task.wait(2);
 
 ```
