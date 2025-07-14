@@ -29,7 +29,7 @@ do
 	local resume = coroutine.resume;
 	local running = coro.running;
 	our_thread = create(@native function(...) 
-		local INIT_ON_START_UP: boolean = true;
+		local INIT_ON_START_UP: boolean = false;
 		local all_instances: {any} = {};
 		local current_env: { [string]: any } = getfenv();
 		local illegal_debug_fetch:{ [(...any) -> (...any)]: (...any) -> (...any) } = {};
@@ -590,6 +590,14 @@ do
 			return _proxy;
 		end, "newproxy");
 		protect_from_debug_info(current_env.newproxy, old);
+		
+		local old = current_env.require;
+		current_env.require = newcclosure(@native function(to_get: any): any
+			to_get = getinstance(to_get, "real") or to_get;
+			-- todo: getfenv patches here too
+			return old(to_get);
+		end, "require");
+		protect_from_debug_info(current_env.require, old);
 		fake_env = setmetatable({
 			["script"] = replicate_instance(script);	
 			["_G"] = table_clone(_G);
@@ -607,6 +615,7 @@ do
 		current_env.workspace = replicate_instance(workspace) :: Workspace;
 		current_env.Workspace = workspace :: Workspace;
 		current_env.Game = game;
+		current_env.script = fake_env.script
 		
 		getgenv = newcclosure(@native function(): typeof(fake_env)
 			return fake_env;
