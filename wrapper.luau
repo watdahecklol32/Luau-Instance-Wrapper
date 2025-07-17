@@ -114,16 +114,16 @@ do
 		getthreadidentity = newcclosure(@native function(): number
 			return 2;
 		end, "getthreadidentity") :: () -> number;
-		
-	
+
+
 		getrawmetatable = newcclosure(@native function(to_get: any): {[string]: any} 
 			-- assert(to_get and _typeof(to_get) == "table" or _typeof(to_get) == "userdata", `invalid argument #1 to 'getrawmetatable' (table or userdata expected, got {typeof(to_get)})`);
 			return raw_metatables[to_get] or getmetatable(to_get);
 		end, "getrawmetatable") :: (target_object: any) -> {[string]: any};
-		
-		
+
+
 		checkcaller = newcclosure(_checkcaller, "checkcaller") :: () -> boolean;
-		
+
 		setrawmetatable = newcclosure(@native function(to_replace: any, new_methods: {[string]: any}): any
 			assert(to_replace and _typeof(to_replace) == "table" or _typeof(to_replace) == "userdata", `invalid argument #1 to 'setrawmetatable' (table or userdata expected, got {typeof(to_replace)})`);
 			assert(new_methods and _typeof(new_methods) == "table", `invalid argument #2 to 'setrawmetatable' (table expected, got {typeof(new_methods)})`);
@@ -141,11 +141,11 @@ do
 		identifyexecutor = newcclosure(@native function(): "da meower >:3"
 			return "da meower >:3";	
 		end, "identifyexecutor") :: () -> "da meower >:3";
-		
+
 		isluau = newcclosure(@native function(): true
 			return true;		
 		end, "isluau") :: () -> true;
-		
+
 		local setnewproxy; setnewproxy = @native function(meta_methods: {[string]: any}): any
 			local proxy = newproxy(true);
 			local proxy_mt = getmetatable(proxy);
@@ -164,7 +164,7 @@ do
 			custom_methods[targeted_instance][new_method] = thing;
 			return thing;
 		end, "add_method") :: (target_instance: any, method_name: string, value: any) -> any;
-		
+
 		iscclosure = newcclosure(@native function(f: (...any) -> (...any)): boolean
 			assert(f and _typeof(f) == "function", `invalid argument #1 to 'iscclosure' (function expected, got {_typeof(f)})`);
 			if table_find(c_functions, f) then
@@ -172,14 +172,14 @@ do
 			end;
 			return debugInfo(f, "s") == "[C]";
 		end, "iscclosure") :: (to_check: ((...any) -> (...any))) -> boolean;
-		
+
 		isnewcclosure = newcclosure(@native function(f: (...any) -> (...any)): boolean
 			assert(f and _typeof(f) == "function", `invalid argument #1 to 'isnewcclosure' (function expected, got {_typeof(f)})`);
 			if table_find(c_functions, f) then
 				return true;
 			end;
 			return false;
-			
+
 		end, "isnewcclosure") :: (to_check: ((...any) -> (...any))) -> boolean;
 		islclosure = newcclosure(@native function(f: (...any) -> (...any)): boolean
 			assert(f and _typeof(f) == "function", `invalid argument #1 to 'islclosure' (function expected, got {_typeof(f)})`);
@@ -195,7 +195,7 @@ do
 			illegal_debug_fetch[real_function] = fake_function; 
 			return fake_function;
 		end, "protect_from_debug_info");
-		
+
 		hookmetamethod = newcclosure(@native function(...: any): (...any) -> (...any)
 			local target: any, method: string, closure: (...any) -> (...any) = ...;
 			assert(target and _typeof(target) == "table" or _typeof(target) == "userdata", `invalid argument #1 to 'hookmetamethod' (table or userdata expected, got {_typeof(target)})`);
@@ -210,7 +210,7 @@ do
 			protect_from_debug_info(old_method, closure);
 			return old_method;
 		end, "hookmetamethod") :: (to_hook: any, target_meta_method: string, replacement_function: (...any) -> (...any)) -> (any);
-		
+
 		local getinstance; getinstance = @native function(to_get: any, mode: string): any?
 			if mode == "real" then
 				if _typeof(to_get) == "Instance" then
@@ -377,10 +377,10 @@ do
 						if illegal_debug_fetch[result] then
 							return illegal_debug_fetch[result];
 						end;
+						local result_func_name: string = debug.info(result, "n");
 						local da_function: (...any) -> (...any) = newcclosure(@native function(...: any): any
-							local new_args: {any} = scan_for_instances({...});
-							return unpack(scan_for_instances({result(unpack(new_args))}));
-						end, debug.info(result, "n"));
+							return unpack(scan_for_instances({result(unpack({scan_for_instances({...})}))}));
+						end, result_func_name);
 						insert_gc(da_function);
 						protect_from_debug_info(da_function, result);
 						return da_function;
@@ -621,11 +621,11 @@ do
 		getmetatable(fake_env).__metatable = getmetatable(current_env);
 		insert_gc(fake_env);
 
-		current_env.game = replicate_instance(game) :: DataModel & typeof(game:GetDescendants());
+		current_env.game = replicate_instance(game) :: DataModel;
 		current_env.workspace = replicate_instance(workspace) :: Workspace;
 		current_env.Workspace = workspace :: Workspace;
-		current_env.Game = game;
-		current_env.script = fake_env.script
+		current_env.Game = current_env.game :: DataModel;
+		current_env.script = fake_env.script :: LuaSourceContainer;
 
 		getgenv = newcclosure(@native function(): typeof(fake_env)
 			return fake_env;
@@ -705,3 +705,18 @@ do
 	end);
 	resume(our_thread);
 end;
+xpcall(function()
+	return game.hi;
+end, function()
+	local index = debug.info(2, 'f');
+	warn(debug.info(index, "snfl"))
+	warn(debug.info(2, "f") == getrawmetatable(game).__index);
+	
+end);
+xpcall(function()
+	return game:GetService()
+end, function()
+	local e = debug.info(2, "f");
+	print(debug.info(e, "snfl"))
+	print(debug.info(2, "f") == game.GetService)
+end);
