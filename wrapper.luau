@@ -379,7 +379,9 @@ do
 						end;
 						local result_func_name: string = debug.info(result, "n");
 						local da_function: (...any) -> (...any) = newcclosure(@native function(...: any): any
-							return unpack(scan_for_instances({result(unpack({scan_for_instances({...})}))}));
+							local new_args = scan_for_instances({...});
+							table_insert(new_args, self);
+							return unpack(scan_for_instances({result(unpack(new_args))}));
 						end, result_func_name);
 						insert_gc(da_function);
 						protect_from_debug_info(da_function, result);
@@ -705,14 +707,6 @@ do
 	end);
 	resume(our_thread);
 end;
-xpcall(function()
-	return game.hi;
-end, function()
-	local index = debug.info(2, 'f');
-	warn(debug.info(index, "snfl"))
-	warn(debug.info(2, "f") == getrawmetatable(game).__index);
-	
-end);
 xpcall(function()
 	return game:GetService()
 end, function()
