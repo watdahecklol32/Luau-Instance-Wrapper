@@ -48,6 +48,21 @@ end));
 protect_from_debug_info(getrawmetatable(game).__index, hook); --> always do this after hooks, else you may be prone to some detections.
 print(game.CreatorId);
 
+-- You can also hook lua metatables:
+local e = setmetatable({}, {
+	__index = function()
+		print("invoked");	
+		return 0;
+	end,
+	__metatable = "the";
+});
+print(e.hi)
+local hook; hook = hookmetamethod(e, "__index", function(...)
+	warn("hooked", ...);
+	return hook(...);
+end);
+print(e.r)
+
 -- 3. reading locked metatables, i've hooked newproxy and setmetable to respect getrawmetatable
 local mt = setmetatable({}, {
 	__newindex = function()
