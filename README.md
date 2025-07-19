@@ -2,7 +2,7 @@
 ## a cheap and detectable and shitty instance wrapper for roblox instances, some code has been skidded from my friend
 
 ## list of da functions:
-## Most of these functions are present on most exploits, therefor they have their existing and proper docmentation you shall read this before you read mine :3  https://orangedoggo.github.io/synapse-x-docs/introduction.html
+## Most of these functions are present on most exploits, therefor they have their existing and proper docmentation you shall read this before you read mine :3  https://orangedoggo.github.io/synapse-x-docs/development/object_mts.html
 1. setrawmetatable - (sets a gaven objects metatable even despite if it has the ``__metatable`` field)
 2. getrawmetatable - (gets a gaven objects metatable even despite if it has the ``__metatable`` field)
 3. hookmetamethod  - (hooks a gaven object's metamethod if found with your own function)
