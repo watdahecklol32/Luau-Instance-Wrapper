@@ -512,8 +512,11 @@ do
 		local old = current_env.debug.info;
 
 		current_env.debug.info = newcclosure(@native @checked function(param1: any, param2: any): any | string
-			if type(param1) == "number" then
-				param1 += 2; -- no: 3
+			if type(param1) == "number" and param1 > 0 then
+				param1 += 2;
+			end;
+			if type(param2) == "number" and param2 > 0 then
+				param2 += 2; 
 			end;
 			local result: {any} = {old(param1, param2)};
 			local unpacked_result: any = unpack(result);
